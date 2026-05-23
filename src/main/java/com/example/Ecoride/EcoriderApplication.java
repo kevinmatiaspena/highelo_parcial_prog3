@@ -4,10 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class EcorideApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(EcorideApplication.class, args);
-	}
-
+public class EcoriderApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(EcoRideApplication.class, args);
+    }
 }
