@@ -6,6 +6,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class EcoriderApplication {
     public static void main(String[] args) {
-        SpringApplication.run(EcoRideApplication.class, args);
+        SpringApplication.run(EcoriderApplication.class, args);
     }
 }
