@@ -3,7 +3,7 @@ package com.example.Ecoride.model;
 import com.example.Ecoride.state.EnEspera;
 import com.example.Ecoride.state.EstadoVehiculo;
 
-public abstract class Vehiculo {
+public abstract class Vehiculo implements Comparable<Vehiculo> {
     private String patente;
     private int porcentajeBateria;
     private double tarifaBase;
@@ -66,6 +66,15 @@ public abstract class Vehiculo {
 
     public void finalizarReparacion() {
         estado.finalizarReparacion(this);
+    }
+
+    @Override
+    public int compareTo(Vehiculo otro) {
+        int comparacionBateria = Integer.compare(porcentajeBateria, otro.porcentajeBateria);
+        if (comparacionBateria != 0) {
+            return comparacionBateria;
+        }
+        return patente.compareToIgnoreCase(otro.patente);
     }
 
 }
