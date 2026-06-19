@@ -1,60 +1,25 @@
 package com.example.Ecoride.dto;
 
 public class DesbloqueoResponse {
-    private String mensaje;
-    private String patente;
-    private String tipoVehiculo;
-    private double montoCobrado;
-    private String detallePago;
+    private final String patente;
+    private final double costoFinalCalculado;
+    private final long tiempoTranscurridoMinutos;
+    private final String faseActual;
+    private final String detallePago;
 
-    public DesbloqueoResponse() {
-    }
-
-    public DesbloqueoResponse(String mensaje, String patente, String tipoVehiculo, double montoCobrado, String detallePago) {
-        this.mensaje = mensaje;
+    public DesbloqueoResponse(String patente, double costoFinalCalculado,
+                              long tiempoTranscurridoMinutos, String faseActual,
+                              String detallePago) {
         this.patente = patente;
-        this.tipoVehiculo = tipoVehiculo;
-        this.montoCobrado = montoCobrado;
+        this.costoFinalCalculado = costoFinalCalculado;
+        this.tiempoTranscurridoMinutos = tiempoTranscurridoMinutos;
+        this.faseActual = faseActual;
         this.detallePago = detallePago;
     }
 
-    public String getMensaje() {
-        return mensaje;
-    }
-
-    public void setMensaje(String mensaje) {
-        this.mensaje = mensaje;
-    }
-
-    public String getPatente() {
-        return patente;
-    }
-
-    public void setPatente(String patente) {
-        this.patente = patente;
-    }
-
-    public String getTipoVehiculo() {
-        return tipoVehiculo;
-    }
-
-    public void setTipoVehiculo(String tipoVehiculo) {
-        this.tipoVehiculo = tipoVehiculo;
-    }
-
-    public double getMontoCobrado() {
-        return montoCobrado;
-    }
-
-    public void setMontoCobrado(double montoCobrado) {
-        this.montoCobrado = montoCobrado;
-    }
-
-    public String getDetallePago() {
-        return detallePago;
-    }
-
-    public void setDetallePago(String detallePago) {
-        this.detallePago = detallePago;
-    }
+    public String getPatente() { return patente; }
+    public double getCostoFinalCalculado() { return costoFinalCalculado; }
+    public long getTiempoTranscurridoMinutos() { return tiempoTranscurridoMinutos; }
+    public String getFaseActual() { return faseActual; }
+    public String getDetallePago() { return detallePago; }
 }

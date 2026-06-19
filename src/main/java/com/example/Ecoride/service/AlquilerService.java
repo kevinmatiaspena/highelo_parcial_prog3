@@ -1,91 +1,93 @@
 package com.example.Ecoride.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.example.Ecoride.dto.DesbloqueoRequest;
 import com.example.Ecoride.dto.DesbloqueoResponse;
+import com.example.Ecoride.exception.AlquilerNoEncontradoException;
 import com.example.Ecoride.exception.BateriaInsuficienteException;
 import com.example.Ecoride.exception.UsuarioNoEncontradoException;
-import com.example.Ecoride.exception.VehiculoNoEncontradoException;
+import com.example.Ecoride.model.Alquiler;
 import com.example.Ecoride.model.EstacionAnclaje;
 import com.example.Ecoride.model.Usuario;
 import com.example.Ecoride.model.Vehiculo;
 import com.example.Ecoride.payments.FabricaProcesadorPago;
 import com.example.Ecoride.payments.ProcesadorPago;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AlquilerService {
-
-    private final List<EstacionAnclaje> estaciones;
-    private final List<Usuario> usuarios;
+    private final Map<String, Usuario> usuariosPorId = new LinkedHashMap<>();
+    private final Map<String, Alquiler> alquileresActivos = new LinkedHashMap<>();
     private final FabricaProcesadorPago fabricaProcesadorPago;
+    private final VehiculoService vehiculoService;
+    private final TarifaService tarifaService;
 
-    public AlquilerService(FabricaProcesadorPago fabricaProcesadorPago) {
-        this.estaciones = new ArrayList<>();
-        this.usuarios = new ArrayList<>();
+    public AlquilerService(FabricaProcesadorPago fabricaProcesadorPago,
+                           VehiculoService vehiculoService, TarifaService tarifaService) {
         this.fabricaProcesadorPago = fabricaProcesadorPago;
+        this.vehiculoService = vehiculoService;
+        this.tarifaService = tarifaService;
     }
 
-    public List<EstacionAnclaje> getEstaciones() {
-        return estaciones;
-    }
-
-    public List<Usuario> getUsuarios() {
-        return usuarios;
-    }
-
-    public void agregarEstacion(EstacionAnclaje estacion) {
-        estaciones.add(estacion);
-    }
+    public void agregarEstacion(EstacionAnclaje estacion) { vehiculoService.agregarEstacion(estacion); }
 
     public void agregarUsuario(Usuario usuario) {
-        usuarios.add(usuario);
+        usuariosPorId.put(usuario.getId().toUpperCase(), usuario);
     }
 
     public DesbloqueoResponse desbloquear(DesbloqueoRequest request) {
-        Usuario usuario = buscarUsuarioPorId(request.getIdUsuario());
-        Vehiculo vehiculo = buscarVehiculoEnEstaciones(request.getPatente());
-
+        Usuario usuario = buscarUsuario(request.getIdUsuario());
+        Vehiculo vehiculo = vehiculoService.buscarPorPatente(request.getPatente());
         validarBateria(vehiculo);
+        fabricaProcesadorPago.crearProcesador(request.getMetodoPago());
 
-        double montoFinal = usuario.calcularTarifaFinal(vehiculo.getTarifaBase());
+        vehiculo.iniciarViaje();
+        Alquiler alquiler = new Alquiler(usuario, vehiculo, request.getMetodoPago());
+        alquileresActivos.put(normalizar(vehiculo.getPatente()), alquiler);
 
-        ProcesadorPago procesadorPago = fabricaProcesadorPago.crearProcesador(request.getMetodoPago());
-        String detallePago = procesadorPago.cobrar(montoFinal);
-
-        return new DesbloqueoResponse(
-                "Desbloqueo realizado correctamente",
-                vehiculo.getPatente(),
-                vehiculo.getClass().getSimpleName(),
-                montoFinal,
-                detallePago
-        );
+        double costoEstimado = calcularCosto(alquiler, 1);
+        return new DesbloqueoResponse(vehiculo.getPatente(), costoEstimado, 0,
+                vehiculo.getFaseActual(), "Cobro pendiente hasta finalizar el viaje");
     }
 
-    private Usuario buscarUsuarioPorId(String idUsuario) {
-        for (Usuario usuario : usuarios) {
-            if (usuario.getId().equalsIgnoreCase(idUsuario)) {
-                return usuario;
-            }
+    public DesbloqueoResponse finalizar(String patente) {
+        String clave = normalizar(patente);
+        Alquiler alquiler = alquileresActivos.get(clave);
+        if (alquiler == null) {
+            throw new AlquilerNoEncontradoException("No existe un alquiler activo para: " + patente);
         }
-        throw new UsuarioNoEncontradoException("Usuario no encontrado con id: " + idUsuario);
+
+        long minutos = alquiler.getMinutosTranscurridos();
+        double costo = calcularCosto(alquiler, minutos);
+        ProcesadorPago procesador = fabricaProcesadorPago.crearProcesador(alquiler.getMetodoPago());
+        String detallePago = procesador.cobrar(costo);
+        alquiler.getVehiculo().finalizarViaje();
+        alquileresActivos.remove(clave);
+
+        return new DesbloqueoResponse(alquiler.getVehiculo().getPatente(), costo, minutos,
+                alquiler.getVehiculo().getFaseActual(), detallePago);
     }
 
-    private Vehiculo buscarVehiculoEnEstaciones(String patente) {
-        for (EstacionAnclaje estacion : estaciones) {
-            Vehiculo vehiculo = estacion.buscarVehiculoPorPatente(patente);
-            if (vehiculo != null) {
-                return vehiculo;
-            }
-        }
-        throw new VehiculoNoEncontradoException("Vehículo no encontrado");
+    private double calcularCosto(Alquiler alquiler, long minutos) {
+        double subtotal = tarifaService.calcular(alquiler.getVehiculo().getTarifaBase(), minutos);
+        double total = alquiler.getUsuario().calcularTarifaFinal(subtotal);
+        return Math.round(total * 100.0) / 100.0;
+    }
+
+    private Usuario buscarUsuario(String id) {
+        Usuario usuario = usuariosPorId.get(normalizar(id));
+        if (usuario == null) throw new UsuarioNoEncontradoException("Usuario no encontrado con id: " + id);
+        return usuario;
     }
 
     private void validarBateria(Vehiculo vehiculo) {
         if (vehiculo.getPorcentajeBateria() < 15) {
             throw new BateriaInsuficienteException("Batería insuficiente");
         }
+    }
+
+    private String normalizar(String texto) {
+        return texto == null ? "" : texto.trim().toUpperCase();
     }
 }
